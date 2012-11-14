@@ -1,0 +1,28 @@
+Theory of Gravitation
+
+An arcade game in which we take control over the gravitation. Sometimes it is trickyto come up with a way to finish a level.
+
+This is a project for 'Projekt Programistyczny' course at Jagiellonian University.
+
+Currently the project is at its early stage.
+
+TODO:
+- design interesting objectives, add power ups, etc
+- design an interesting model for the main character
+- create levels
+- improve graphics
+- sounds, music
+- design a simple menu
+
+ideas for future development:
+- a program for creating levels?
+- saving / loading a state of the game
+- documentation? :)
+- using a nice building & distributing tool
+
+hard-core ideas:
+- multiplayer
+
+Powered by:
+pygame (http://pygame.org)
+pybox2d (http://box2d.org, http://code.google.com/p/pybox2d/)

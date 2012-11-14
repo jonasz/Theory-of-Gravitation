@@ -2,3 +2,5 @@
 *.swp
 *.so
 build
+*.pyc
+*.pyo
