@@ -228,7 +228,7 @@ class fwDebugDraw(box2d.b2DebugDraw):
         if radius < 1: radius = 1
         else: radius = int(radius)
 
-        center = self.toScreen(center)
+        center = map(int,self.toScreen(center))
         pygame.draw.circle(self.surface, color, center, radius, drawwidth)
 
     def DrawSolidCircle(self, center_v, radius, axis, color):
@@ -240,7 +240,7 @@ class fwDebugDraw(box2d.b2DebugDraw):
         if radius < 1: radius = 1
         else: radius = int(radius)
 
-        center = self.toScreen(center_v)
+        center = map(int,self.toScreen(center_v))
         pygame.draw.circle(self.surface, (color[0]/2, color[1]/2, color[1]/2, 127), center, radius, 0)
 
         pygame.draw.circle(self.surface, color, center, radius, 1)
@@ -463,7 +463,7 @@ class Framework(object):
         caption= "Python Box2D Testbed - " + self.name
         pygame.display.set_caption(caption)
 
-        self.screen = pygame.display.set_mode( (640,480) )
+        self.screen = pygame.display.set_mode( (1000,800) )
         self.debugDraw.surface = self.screen
 
         self.screenSize = box2d.b2Vec2(*self.screen.get_size())
@@ -521,7 +521,7 @@ class Framework(object):
         Passes the events onto the GUI also.
         """
         for event in pygame.event.get():
-            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_q):
                 return False
             elif event.type == KEYDOWN:
                 self._Keyboard_Event(event.key)
