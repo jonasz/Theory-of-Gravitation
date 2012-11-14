@@ -9,26 +9,25 @@ class TransparentActor(object):
     def display(self): raise NotImplementedError
 
 class DisplaySprite(TransparentActor):
-    def __init__(self, sprite, position, siz, expire, graphics):
-        self.sprite = sprite
+    def __init__(self, spr_name, position, siz, expire, graphics):
+        self.spr_name = spr_name
         self.position = position
         self.siz = siz
         self.expire = expire
         self.graphics = graphics
 
     def display(self):
-        self.graphics.putSprite(self.position, self.sprite, self.siz)
+        self.graphics.putSprite(self.position, self.spr_name, self.siz)
         return self.expire > time.time()
 
 class Graphics:
     zoom = None
-    loaded_sprites = None
-    sprites = None
+    transparent_actors = None
 
     def __init__(self, settings, level):
         self.settings = settings
         self.level = level
-        self.zoom = utils.smoothChanger(-3)
+        self.zoom = utils.SmoothChanger(-3)
 
         pygame.init()
         pygame.display.set_caption('Theory of Gravitation')
@@ -37,23 +36,17 @@ class Graphics:
 
         level.subscribeToContacts(ContactType.add, self.crash)
 
-        self.loadSprites()
-        self.sprites = []
-
-    def loadSprites(self):
-        self.loaded_sprites = {}
-        self.loaded_sprites['pow1'] = pygame.image.load('./sprites/pow1.png')
-        self.loaded_sprites['pow2'] = pygame.image.load('./sprites/pow2.png')
+        self.transparent_actors = []
 
     def showTransparentActors(self):
-        cpy = self.sprites
-        self.sprites = []
+        cpy = self.transparent_actors
+        self.transparent_actors = []
         for ac in cpy:
             if ac.display():
-                self.sprites.append(ac)
+                self.transparent_actors.append(ac)
 
     def addTransparentActor(self, ac):
-        self.sprites.append(ac)
+        self.transparent_actors.append(ac)
 
     def crash(self, point):
         if point.velocity.Length()<10: return
@@ -62,17 +55,15 @@ class Graphics:
         #if not (o1.isMainCharacter() or o2.isMainCharacter()): return
 
         pos = point.position.copy()
-        sprite = random.choice((
-            self.loaded_sprites['pow1'],
-            self.loaded_sprites['pow2']))
+        spr_name = random.choice(('./sprites/pow1.png', './sprites/pow2.png'))
         self.addTransparentActor(
-                DisplaySprite(sprite, pos, (3,3), time.time()+0.5, self))
+                DisplaySprite(spr_name, pos, (3,3), time.time()+0.5, self))
 
     def zoomIn(self):
-        self.zoom.init_change(1, 20)
+        self.zoom.init_change(1)
 
     def zoomOut(self):
-        self.zoom.init_change(-1,20)
+        self.zoom.init_change(-1)
 
     def circle(self, color, position, radius):
         #print position, self.screenCoord(position)
@@ -84,17 +75,12 @@ class Graphics:
                 self.scaleLength(radius),
                 0)
 
-    def putSprite(self, position, sprite, (we, he), angle=0):
+    def putSprite(self, position, spr_name, (we, he), angle=0, **kwargs):
         x,y = self.screenCoord(position)
         we,he = self.scaleLength(we), self.scaleLength(he)
-        sprite = pygame.transform.scale(sprite, (2*we, 2*he))
-
-        angle *= 180. / math.pi
-        if angle>90:
-            sprite = pygame.transform.flip(sprite, True, False)
-            angle = 180+angle
-        sprite = pygame.transform.rotate(sprite, angle)
-
+        sprite = utils.get_bitmap(spr_name, 2*we, 2*he, **kwargs)
+        if angle:
+            sprite = pygame.transform.rotate(sprite, angle)
         w,h = sprite.get_size()
         x,y = x-w/2, y-h/2
 
@@ -123,7 +109,7 @@ class Graphics:
     def getScale(self):
         sw,sh = self.settings.screen_size
         scale = 1. * sw / self.level.size[0] 
-        scale *= self.settings.zoom_factor ** self.zoom.value
+        scale *= self.settings.zoom_factor ** self.zoom.get()
         return scale
 
     # world coordinates -> screen coordinates
@@ -134,9 +120,7 @@ class Graphics:
         vec -= camera
 
         sw,sh = self.settings.screen_size
-        vec = utils.rotate(
-                vec,
-                -self.level.world_angle.value)
+        vec = utils.rotate(vec, -self.level.world_angle.get())
  
 
         vec *= self.getScale()

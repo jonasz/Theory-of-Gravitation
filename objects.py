@@ -1,6 +1,7 @@
 import Box2D as b2d
 import pygame.image
 import utils
+import math
 
 class Actor(object):
     body = None
@@ -82,14 +83,19 @@ class Helicopter(Ball):
     def __init__(self, level, world, radius, **kwargs):
         super(Helicopter, self).__init__(world, radius, **kwargs)
         self.level = level
-        self.sprite = pygame.image.load('./sprites/heli.png')
-        self.sprite = pygame.transform.flip(self.sprite, True, False)
+        self.spr_name = './sprites/heli.png'
 
     def draw(self, graphics):
         #super(Helicopter, self).draw(graphics)
-        right = utils.rotate(b2d.b2Vec2(1,0), self.level.world_angle.value)
+        right = utils.rotate(b2d.b2Vec2(-1,0), self.level.world_angle.get())
         angle = utils.angle_between(right, self.body.linearVelocity)
-        graphics.putSprite(self.body.position, self.sprite, (self.radius, self.radius), angle=angle)
+        angle = int(angle * 180 / math.pi)
+        graphics.putSprite(
+                self.body.position,
+                self.spr_name,
+                (self.radius, self.radius),
+                angle=angle,
+                flipY = abs(angle)>90)
 
     def isMainCharacter(self):
         return True

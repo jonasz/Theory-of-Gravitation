@@ -29,14 +29,14 @@ class Level(object):
     size = (W, H)
     character = None
     world_angle = None
-    original_gravity = b2d.b2Vec2(0, -10)
+    original_gravity = b2d.b2Vec2(0, -20)
     contactCallbackList = None
 
     def getCenter(self):
         return b2d.b2Vec2(self.W, self.H)/2.
 
     def __init__(self, settings):
-        self.world_angle = utils.smoothChanger(0)
+        self.world_angle = utils.SmoothChanger(0)
         self.settings = settings
         self.contactCallbackList = {
                 ContactType.add: [],
@@ -46,14 +46,13 @@ class Level(object):
 
     def updateWorld(self):
         self.world_angle.step()
-        gravity = utils.rotate(self.original_gravity, self.world_angle.value)
+        gravity = utils.rotate(self.original_gravity, self.world_angle.get())
         self.world.SetGravity(gravity)
-        #print 'gravity', gravity
         self.world.Step(
                 self.settings.time_step,
                 self.settings.vel_iters,
                 self.settings.pos_iters)
-        #print self.world_angle.value
+        #print self.world_angle.get()
     
     def subscribeToContacts(self, ctype, cb):
         self.contactCallbackList[ctype].append(cb)
@@ -63,13 +62,12 @@ class Level(object):
             cb(point)
 
     def constructWorld(self):
-        gravity = b2d.b2Vec2(0, -10)
         doSleep = False
 
         worldAABB=b2d.b2AABB()
         worldAABB.lowerBound = (-20, -20)
         worldAABB.upperBound = (self.size[0]+20, self.size[1]+20)
-        self.world = b2d.b2World(worldAABB, gravity, doSleep)
+        self.world = b2d.b2World(worldAABB, self.original_gravity, doSleep)
 
         self.contactListener = ContactListener(self)
         self.world.SetContactListener(self.contactListener)
@@ -97,16 +95,16 @@ class Level(object):
                 restitution = 0)
 
     def GravityLeft(self):
-        self.world_angle.init_change(math.pi/2, 30)
+        self.world_angle.init_change(math.pi/2)
 
     def GravityRight(self):
-        self.world_angle.init_change(-math.pi/2, 30)
+        self.world_angle.init_change(-math.pi/2)
 
     def GravityUp(self):
-        self.world_angle.init_change(math.pi, 30)
+        self.world_angle.init_change(math.pi)
 
     def GravityDown(self):
-        self.world_angle.init_change(-math.pi, 30)
+        self.world_angle.init_change(-math.pi)
 
 
 class FirstLevel(Level):
@@ -130,7 +128,7 @@ class FirstLevel(Level):
         vec = b2d.b2Vec2(x,y)
         b = self.character.body
         b.ApplyImpulse(
-                utils.rotate(vec, self.world_angle.value),
+                utils.rotate(vec, self.world_angle.get()),
                 b.GetWorldPoint(b.massData.center))
 
     def moveLeft(self):
