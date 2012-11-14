@@ -6,6 +6,10 @@ This is a project for 'Projekt Programistyczny' course at Jagiellonian Universit
 
 Currently the project is at its early stage.
 
+BUILDING and RUNNING:
+./build.sh
+./run.sh
+
 TODO:
 - design interesting objectives, add power ups, etc
 - design an interesting model for the main character
