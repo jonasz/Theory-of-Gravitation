@@ -17,6 +17,7 @@ TODO:
 - improve graphics
 - sounds, music
 - design a simple menu
+- test for memory leaks
 
 ideas for future development:
 - a program for creating levels?

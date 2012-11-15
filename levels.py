@@ -278,7 +278,7 @@ class FirstLevel(Level):
                 position = (16,25),
                 angle = 1.,
                 restitution = 0.1,
-                fixedRotation = False)
+                fixedRotation = True)
 
         self.addActor(self.character)
 

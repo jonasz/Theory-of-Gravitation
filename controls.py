@@ -41,6 +41,10 @@ PYGAME_KB_MAP = {
         K_EQUALS:   CTRL.ZOOM_IN,
         }
 
+# TODO
+PYGAME_POINTER_MAP = {
+        }
+
 # may be a controller event or a pointer event
 # controller id may be added in future to allow multiplayer
 class TOGEvent:
@@ -81,13 +85,12 @@ class Controls:
                 code = PYGAME_KB_MAP[event.key]
 
             elif event.type in [MOUSEBUTTONUP, MOUSEBUTTONDOWN] and \
-                    event.key in PYGAME_POINTER_MAP:
+                    event.button in PYGAME_POINTER_MAP:
                 pressed = event.type == MOUSEBUTTONDOWN
-                code = PYGAME_POINTER_MAP[event.key]
+                code = PYGAME_POINTER_MAP[event.button]
                 print pressed
 
             else:
-                print 'unknown event:', event
                 continue
 
             self.dispatchEvent_(TOGEvent(code, pressed = pressed))
