@@ -1,22 +1,31 @@
 import pygame
-import pygame.locals
+from pygame.locals import *
 import settings
 import graphics
-import controls
 import Box2D as b2d
 from levels import FirstLevel
+from controls import CTRL, TOGEvent, Controls
 
 class Game:
-    def __init__(self, level, settings, user_input, graph):
+    def __init__(self, level, settings, ctrls, graph):
         self.level = level
         self.settings = settings
-        self.user_input = user_input
+        self.ctrls = ctrls
         self.graph = graph
         self.running = True
 
-        self.user_input.addKeybCallback(pygame.locals.K_q, self.quit)
-        self.user_input.addKeybCallback(pygame.locals.K_MINUS, graph.zoomOut)
-        self.user_input.addKeybCallback(pygame.locals.K_EQUALS, graph.zoomIn)
+        self.subscribeToControls()
+
+
+    def subscribeToControls(self):
+        self.graph.subscribeToControls(self.ctrls)
+        table = (
+                (CTRL.QUIT,             self.quit),
+        )
+
+        for c,f in table:
+            e = TOGEvent(code=c)
+            self.ctrls.subscribeTo(e, f)
 
 
     def quit(self):
@@ -27,7 +36,7 @@ class Game:
         clock = pygame.time.Clock()
 
         while self.running:
-            self.user_input.dispatchEvents()
+            self.ctrls.dispatchEvents()
             self.level.updateWorld()
             self.graph.paint()
             clock.tick(self.settings.hz)
@@ -35,8 +44,8 @@ class Game:
 
 if __name__=='__main__':
     st = settings.Settings()
-    fl = FirstLevel(st)
-    ui = controls.Controls(fl)
+    ui = Controls()
+    fl = FirstLevel(st, ui)
     gr = graphics.Graphics(st, fl)
 
     g = Game(fl, st, ui, gr)

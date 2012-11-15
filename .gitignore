@@ -4,3 +4,7 @@
 build
 *.pyc
 *.pyo
+Box2D-2.0.2b2/Box2D.py
+Box2D-2.0.2b2/Box2D/Box2D_wrap.cpp
+Box2D-2.0.2b2/Box2D/Box2D_wrap.h
+playground
