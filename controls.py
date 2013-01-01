@@ -1,9 +1,9 @@
 import pygame
 from pygame.locals import *
-from utils import Enum
+import utils
 
 # controller events
-CTRL = Enum(
+CTRL = utils.Enum(
         'ARROW_LEFT',
         'ARROW_DOWN',
         'ARROW_RIGHT',
@@ -19,7 +19,7 @@ CTRL = Enum(
         )
 
 # pointer events
-POINTER = Enum(
+POINTER = utils.Enum(
         'LEFT_BUTTON',
         'MIDDLE_BUTTON',
         'RIGHT_BUTTON',
@@ -62,22 +62,42 @@ class TOGEvent:
         if self.pressed != ev2.pressed: return False
         return True
 
+# encapsulates an event and a callback
+# 'withInfo' tells us if the callback should be called with TOGEvent as
+# a paremeter
+class CBInfo:
+    def __init__(self, ev, cb, withInfo = False):
+        self.event = ev
+        self.callback = cb
+        self.withInfo = withInfo
+
+    def handle (self, togEvent):
+        if self.event.matches(togEvent):
+            if self.withInfo: self.callback(togEvent)
+            else: self.callback()
+
 class Controls:
+    # SINGLETON class
+    __metaclass__ = utils.Singleton
+
     def __init__(self):
-        self.cbs = []
+        self.cbs = {}
+        self.ids = (i for i in xrange(1,2*10**9))
 
-    def subscribeTo(self, togEvent, callback):
-        self.cbs.append((togEvent, callback, False))
-
-    def subscribeWithInfoTo(self, togEvent, callback):
-        self.cbs.append((togEvent, callback, True))
+    def subscribeTo(self, cbInfo):
+        ID = self.ids.next()
+        self.cbs[ID] = cbInfo
+        return ID
 
     def dispatchEvent_(self, togEvent):
-        for ev, cb, info in self.cbs:
-            if ev.matches(togEvent):
-                if info: cb(togEvent)
-                else: cb()
+        for cbInfo in self.cbs.values():
+            cbInfo.handle(togEvent)
 
+    def unsubscribe(self, callbackID):
+        del self.cbs[callbackID]
+
+    # loop through all the events provided by pygame.event
+    # and call appropriate callbacks for every event
     def dispatchEvents(self):
         for event in pygame.event.get():
             if event.type in [KEYDOWN, KEYUP] and event.key in PYGAME_KB_MAP:
@@ -88,9 +108,35 @@ class Controls:
                     event.button in PYGAME_POINTER_MAP:
                 pressed = event.type == MOUSEBUTTONDOWN
                 code = PYGAME_POINTER_MAP[event.button]
-                print pressed
 
             else:
                 continue
 
             self.dispatchEvent_(TOGEvent(code, pressed = pressed))
+
+class ControlsCapsule:
+    def __init__(self, callbacks = None):
+        self.callbackIDs = []
+        self.callbacks = []
+        if callbacks:
+            for cb in callbacks:
+                self.addCallback(cb)
+
+    def addCallback (self, cbInfo):
+        self.callbacks.append(cbInfo)
+        ID = Controls().subscribeTo(cbInfo)
+        self.callbackIDs.append(ID)
+
+    def subscribe(self):
+        assert len(self.callbackIDs)==0
+        callbacks = self.callbacks
+        self.callbacks = []
+
+        for x in callbacks:
+            self.addCallback(x)
+
+    def unsubscribe(self):
+        for x in self.callbackIDs:
+            Controls().unsubscribe(x)
+
+        del self.callbackIDs[:]

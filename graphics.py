@@ -4,7 +4,7 @@ import utils
 from levels import ContactType
 import random
 import time
-from controls import CTRL, TOGEvent
+from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
 
 class Graphics:
     zoom = None
@@ -94,12 +94,12 @@ class Graphics:
     def scaleLength(self, length):
         return int(length*self.getScale())
 
-    def subscribeToControls(self, ctrls):
-        table = (
-                (CTRL.ZOOM_OUT,   self.zoomOut),
-                (CTRL.ZOOM_IN,    self.zoomIn),
-        )
-
-        for c,f in table:
-            e = TOGEvent(code=c)
-            ctrls.subscribeTo(e, f)
+    def createControls(self):
+        self.controls = ControlsCapsule ([
+            CBInfo(
+                TOGEvent(code = CTRL.ZOOM_OUT),
+                cb = self.zoomOut),
+            CBInfo(
+                TOGEvent(code = CTRL.ZOOM_IN),
+                cb = self.zoomIn),
+            ])

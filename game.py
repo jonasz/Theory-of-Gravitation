@@ -4,28 +4,26 @@ import settings
 import graphics
 import Box2D as b2d
 from levels import FirstLevel
-from controls import CTRL, TOGEvent, Controls
+from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
 
 class Game:
-    def __init__(self, level, settings, ctrls, graph):
+    def __init__(self, level, settings, graph):
         self.level = level
         self.settings = settings
-        self.ctrls = ctrls
         self.graph = graph
         self.running = True
 
-        self.subscribeToControls()
+        self.createControls()
 
 
-    def subscribeToControls(self):
-        self.graph.subscribeToControls(self.ctrls)
-        table = (
-                (CTRL.QUIT,             self.quit),
-        )
+    def createControls(self):
+        self.graph.createControls()
 
-        for c,f in table:
-            e = TOGEvent(code=c)
-            self.ctrls.subscribeTo(e, f)
+        self.controls = ControlsCapsule ([
+            CBInfo(
+                TOGEvent(code = CTRL.QUIT),
+                cb = self.quit),
+            ])
 
 
     def quit(self):
@@ -36,7 +34,7 @@ class Game:
         clock = pygame.time.Clock()
 
         while self.running:
-            self.ctrls.dispatchEvents()
+            Controls().dispatchEvents()
             self.level.updateWorld()
             self.graph.paint()
             clock.tick(self.settings.hz)
@@ -44,9 +42,8 @@ class Game:
 
 if __name__=='__main__':
     st = settings.Settings()
-    ui = Controls()
-    fl = FirstLevel(st, ui)
+    fl = FirstLevel(st)
     gr = graphics.Graphics(st, fl)
 
-    g = Game(fl, st, ui, gr)
+    g = Game(fl, st, gr)
     g.start()
