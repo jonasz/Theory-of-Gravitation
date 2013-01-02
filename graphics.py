@@ -76,13 +76,10 @@ class Graphics:
     # world coordinates -> screen coordinates
     def screenCoord(self, vec):
         vec = vec.copy()
-        camera = self.level.character.body.position
-        #camera = self.level.getCenter()
-        vec -= camera
+        vec -= self.level.getCameraPosition()
 
         sw,sh = self.settings.screen_size
         vec = utils.rotate(vec, -self.level.world_angle.get())
- 
 
         vec *= self.getScale()
         x,y = map(int,vec)

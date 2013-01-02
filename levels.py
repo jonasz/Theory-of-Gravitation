@@ -5,6 +5,7 @@ import utils
 import time
 import random
 from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
+import gravity_changers
 
 class ContactType:
     add = 0
@@ -45,12 +46,19 @@ class Level(object):
     def getCenter(self):
         return b2d.b2Vec2(self.W, self.H)/2.
 
+    def getCameraPosition(self):
+        return self.getCenter()
+
     def getOriginalVec(self, *args):
         vec = b2d.b2Vec2(*args)
         return utils.rotate(vec, self.world_angle.get())
 
-    def __init__(self, settings, world_angle):
-        self.world_angle = world_angle
+    def changeGravityChanger(self, newChanger):
+        if self.world_angle: self.world_angle.controls.unsubscribe()
+        self.world_angle = newChanger
+        self.world_angle.createControls()
+
+    def __init__(self, settings):
         self.settings = settings
         self.contactCallbackList = {
                 ContactType.add: [],
@@ -60,6 +68,7 @@ class Level(object):
 
         self.createControls()
         self.subscribeToContacts(ContactType.add, self.clash)
+        self.changeGravityChanger(gravity_changers.ConstantGravity())
 
     def addActor(self, actor):
         self.actors[actor.id] = actor
@@ -69,41 +78,7 @@ class Level(object):
         self.actors.pop(actor_id)
 
     def createControls(self):
-        self.world_angle.createControls()
-
-        # create ContinuousActions that will move the main character
-        self.moveUp = utils.ContinuousAction(G_FS,
-                fun = lambda: self.character.poke(self.getOriginalVec(0,30)),
-                interval = 0.02)
-        self.moveLeft = utils.ContinuousAction(G_FS,
-                fun = lambda: self.character.poke(self.getOriginalVec(-30,0)),
-                interval = 0.02)
-        self.moveRight = utils.ContinuousAction(G_FS,
-                fun = lambda: self.character.poke(self.getOriginalVec(30,0)),
-                interval = 0.02)
-
-        # subscribe to them
-        self.controls = ControlsCapsule ([
-            CBInfo(
-                TOGEvent(code = CTRL.ARROW_LEFT),
-                cb = self.moveLeft.start),
-            CBInfo(
-                TOGEvent(code = CTRL.ARROW_RIGHT),
-                cb = self.moveRight.start),
-            CBInfo(
-                TOGEvent(code = CTRL.ARROW_UP),
-                cb = self.moveUp.start),
-
-            CBInfo(
-                TOGEvent(code = CTRL.ARROW_LEFT, pressed = False),
-                cb = self.moveLeft.stop),
-            CBInfo(
-                TOGEvent(code = CTRL.ARROW_RIGHT, pressed = False),
-                cb = self.moveRight.stop),
-            CBInfo(
-                TOGEvent(code = CTRL.ARROW_UP, pressed = False),
-                cb = self.moveUp.stop),
-            ])
+        self.controls = ControlsCapsule()
 
     def physicsStep_(self):
         gravity = utils.rotate(self.original_gravity, self.world_angle.get())
@@ -181,105 +156,13 @@ class Level(object):
             delay = 0.2)
 
 
-# Gravity changers listen to keyboard actions and update
-# the world angle accordingly. This may be used in more general scope in future.
-class GravityChangerBase:
-    def __init__(self):
-        self.world_angle = utils.SmoothChanger(0)
-
-    def createControls(self):
-        raise NotImplementedError
-
-    def get(self):
-        return self.world_angle.get()
-
-    def step(self):
-        self.world_angle.step()
-
-
-class GravityChanger(GravityChangerBase):
-    def __init__(self):
-        self.world_angle = utils.SmoothChanger(0)
-
-    def createControls(self):
-        self.controls = ControlsCapsule ([
-                CBInfo(
-                    TOGEvent(code = CTRL.WORLD_LEFT),
-                    cb = self.GravityLeft),
-                CBInfo(
-                    TOGEvent(code = CTRL.WORLD_RIGHT),
-                    cb = self.GravityRight),
-                CBInfo(
-                    TOGEvent(code = CTRL.WORLD_UP),
-                    cb = self.GravityUp),
-                CBInfo(
-                    TOGEvent(code = CTRL.WORLD_DOWN),
-                    cb = self.GravityDown),
-                ])
-
-    def GravityLeft(self):
-        self.world_angle.init_change(math.pi/2)
-
-    def GravityRight(self):
-        self.world_angle.init_change(-math.pi/2)
-
-    def GravityUp(self):
-        self.world_angle.init_change(math.pi)
-
-    def GravityDown(self):
-        self.world_angle.init_change(-math.pi)
-
-
-# too expensive?
-class ContinuousGravityChanger(GravityChangerBase):
-    TIMEDELTA = 0.02 # ~ 50 times per sec
-    DELTA = 0.04
-    def __init__(self):
-        self.world_angle = 0.
-        self.GravityLeft = utils.ContinuousAction(
-                G_FS,
-                fun = self.GravityLeftFun,
-                interval = self.TIMEDELTA)
-        self.GravityRight = utils.ContinuousAction(
-                G_FS,
-                fun = self.GravityRightFun,
-                interval = self.TIMEDELTA)
-
-    def get(self):
-        return self.world_angle
-
-    def step(self):
-        self.world_angle
-
-    def GravityLeftFun(self):
-        self.world_angle += self.DELTA
-
-    def GravityRightFun(self):
-        self.world_angle -= self.DELTA
-
-    def createControls(self):
-        self.controls = ControlsCapsule ([
-                CBInfo(
-                    ev = TOGEvent(code = CTRL.WORLD_LEFT),
-                    cb = self.GravityLeft.start),
-                CBInfo(
-                    ev = TOGEvent(code = CTRL.WORLD_LEFT, pressed = False),
-                    cb = self.GravityLeft.stop),
-
-                CBInfo(
-                    ev = TOGEvent(code = CTRL.WORLD_RIGHT),
-                    cb = self.GravityRight.start),
-                CBInfo(
-                    ev = TOGEvent(code = CTRL.WORLD_RIGHT, pressed = False),
-                    cb = self.GravityRight.stop),
-                ])
-
 
 class FirstLevel(Level):
     def __init__(self, *args, **kwargs):
-        #wa = ContinuousGravityChanger()
-        wa = GravityChanger()
-        super(FirstLevel,  self).__init__(*args, world_angle = wa, **kwargs)
+        super(FirstLevel,  self).__init__(*args, **kwargs)
+        #wa = gravity_changers.ContinuousGravityChanger()
+        wa = gravity_changers.GravityChanger()
+        self.changeGravityChanger(wa)
 
     def constructWorld(self):
         super(FirstLevel, self).constructWorld()
@@ -301,6 +184,45 @@ class FirstLevel(Level):
 
     def createControls(self):
         super(FirstLevel, self).createControls()
+
+        # create ContinuousActions that will move the main character
+        self.moveUp = utils.ContinuousAction(G_FS,
+                fun = lambda: self.character.poke(self.getOriginalVec(0,30)),
+                interval = 0.02)
+        self.moveLeft = utils.ContinuousAction(G_FS,
+                fun = lambda: self.character.poke(self.getOriginalVec(-30,0)),
+                interval = 0.02)
+        self.moveRight = utils.ContinuousAction(G_FS,
+                fun = lambda: self.character.poke(self.getOriginalVec(30,0)),
+                interval = 0.02)
+
+        # subscribe to them
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_LEFT),
+                cb = self.moveLeft.start))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_RIGHT),
+                cb = self.moveRight.start))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_UP),
+                cb = self.moveUp.start))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_LEFT, pressed = False),
+                cb = self.moveLeft.stop))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_RIGHT, pressed = False),
+                cb = self.moveRight.stop))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_UP, pressed = False),
+                cb = self.moveUp.stop))
+
+    def getCameraPosition(self):
+        return self.character.body.position
 
 
 if __name__=='__main__':

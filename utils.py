@@ -196,8 +196,10 @@ class Singleton(type):
     def __init__(cls, *args):
         super(Singleton, cls).__init__(*args)
         cls.instance = None
+        print cls, 'init'
 
     def __call__(cls, *args, **kwargs):
+        print 'call', cls, args, kwargs
         if cls.instance is None:
             cls.instance = super(Singleton, cls).__call__(*args, **kwargs)
         return cls.instance

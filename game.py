@@ -1,8 +1,7 @@
 import pygame
-from pygame.locals import *
 import settings
 import graphics
-import Box2D as b2d
+from pygame.locals import *
 from levels import FirstLevel
 from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
 

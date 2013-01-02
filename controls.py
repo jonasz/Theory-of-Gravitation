@@ -43,6 +43,9 @@ PYGAME_KB_MAP = {
 
 # TODO
 PYGAME_POINTER_MAP = {
+        1: POINTER.LEFT_BUTTON,
+        2: POINTER.MIDDLE_BUTTON,
+        3: POINTER.RIGHT_BUTTON,
         }
 
 # may be a controller event or a pointer event
