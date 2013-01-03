@@ -15,6 +15,13 @@ class Actor(object):
     def isMainCharacter(self):
         return False
 
+    def rotate(self, vec1, vec2): raise NotImplementedError
+    def resize(self, vec1, vec2): raise NotImplementedError
+
+    def move(self, vec): raise NotImplementedError
+    def isPointInside(self, vec): raise NotImplementedError
+
+
 class StaticSprite(Actor):
     def __init__(self, position, size, spr_name, angle = 0):
         super(StaticSprite, self).__init__()
@@ -25,6 +32,9 @@ class StaticSprite(Actor):
 
     def draw(self, graphics):
         graphics.putSprite(self.position, self.spr_name, self.size, self.angle)
+
+    def move(self, vec):
+        self.position += vec
 
 class Pow1(StaticSprite):
     def __init__(self, position, size=(3,3)):
@@ -47,7 +57,7 @@ class MaterialActor(Actor):
     def applyShapeAttrs(self, shape):
         for (k,v) in self.shape_attrs.items():
             setattr(shape, k, v)
-            print shape.restitution
+            #print shape.restitution
 
     def createBody(self, **kwargs):
         bodyDef = b2d.b2BodyDef()
@@ -66,11 +76,18 @@ class MaterialActor(Actor):
         massCenter = self.body.massData.center
         self.body.ApplyImpulse(vec, massCenter)
 
+    def move(self, vec):
+        self.body.position += vec
+
+    def isPointInside(self, vec):
+        for shape in self.body.shapeList:
+            if shape.TestPoint(self.body.GetXForm(), vec):
+                return True
+        return False
+
 
 class Ball(MaterialActor):
-    def __init__(self, world, radius, **kwargs):
-        super(Ball, self).__init__(world, **kwargs)
-
+    def addCircleShape(self, radius):
         self.radius = radius
         shapeDef = b2d.b2CircleDef()
         shapeDef.density = 1
@@ -78,32 +95,88 @@ class Ball(MaterialActor):
         shapeDef.radius = radius
 
         self.applyShapeAttrs(shapeDef)
-        print shapeDef.restitution
+        #print shapeDef.restitution
 
         shape=self.body.CreateShape(shapeDef)
         self.body.SetMassFromShapes()
 
+    def __init__(self, world, radius, **kwargs):
+        super(Ball, self).__init__(world, **kwargs)
+        self.addCircleShape(radius)
+
     def draw(self, graphics):
         graphics.circle((130,40,120), self.body.position, self.radius)
 
+    #rotating a ball is easy
+    def rotate(self, vec1, vec2): pass
+
+    def resize(self, vec1, vec2):
+        origin = self.body.position
+        d1 = (vec1-origin).Length()
+        d2 = (vec2-origin).Length()
+        scale = d2 / d1
+
+        shape = self.body.shapeList[0]
+        self.body.DestroyShape(shape)
+
+        newradius = self.radius*scale
+        self.addCircleShape(newradius)
+
 
 class Box(MaterialActor):
-    def __init__(self, world, size, static=False, **kwargs):
+    def __init__(self, world, size, angle = 0, static=False, **kwargs):
+        self.static = static
         super(Box, self).__init__(world, **kwargs)
+        self.addRectShape(size, angle)
 
+    def addRectShape(self, size, angle):
+        self.size = size
         shapeDef = b2d.b2PolygonDef()
         shapeDef.SetAsBox(*size)
         shapeDef.density = 1
         shapeDef.restitution = 0.8
 
         self.applyShapeAttrs(shapeDef)
+        self.body.CreateShape(shapeDef)
+        self.body.angle = angle
 
-        shape = self.body.CreateShape(shapeDef)
-
-        if not static:
+        if not self.static:
             self.body.SetMassFromShapes()
 
+    def resize(self, vec1, vec2):
 
+        origin = self.body.position
+        angle = self.body.angle
+        w,h = self.size
+
+        vec1 = utils.rotate(vec1-origin, -angle)
+        vec2 = utils.rotate(vec2-origin, -angle)
+
+        resize_angle = utils.angle_between(vec1, b2d.b2Vec2(0,1)) - angle
+        try:
+            w *= 1. * vec2[0] / vec1[0]
+            h *= 1. * vec2[1] / vec1[1]
+        except ZeroDivisionError:
+            pass #whatever
+
+        w = max(w, 0.1)
+        h = max(h, 0.1)
+
+        shape = self.body.shapeList[0]
+        self.body.DestroyShape(shape)
+
+        self.addRectShape((w,h), angle)
+
+    def rotate(self, vec1, vec2):
+        origin = self.body.position
+        angle = self.body.angle
+
+        angle_delta = utils.angle_between(vec1 - origin, vec2 - origin)
+
+        shape = self.body.shapeList[0]
+        self.body.DestroyShape(shape)
+
+        self.addRectShape(self.size, angle + angle_delta)
 
     def draw(self, graphics):
         shape = self.body.GetShapeList()[0]

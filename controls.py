@@ -1,9 +1,11 @@
 import pygame
 from pygame.locals import *
 import utils
+import graphics
 
 # controller events
 CTRL = utils.Enum(
+        # keyboard
         'ARROW_LEFT',
         'ARROW_DOWN',
         'ARROW_RIGHT',
@@ -16,13 +18,17 @@ CTRL = utils.Enum(
         'ZOOM_OUT',
         'SPACE',
         'QUIT',
-        )
+        'K1',
+        'K2',
+        'K3',
+        'SHIFT',
+        'CTRL',
 
-# pointer events
-POINTER = utils.Enum(
+        # mouse
         'LEFT_BUTTON',
         'MIDDLE_BUTTON',
         'RIGHT_BUTTON',
+        'MOUSE_MOTION',
         )
 
 
@@ -39,22 +45,34 @@ PYGAME_KB_MAP = {
         K_q:        CTRL.QUIT,
         K_MINUS:    CTRL.ZOOM_OUT,
         K_EQUALS:   CTRL.ZOOM_IN,
+        K_1:        CTRL.K1,
+        K_2:        CTRL.K2,
+        K_3:        CTRL.K3,
+        K_LSHIFT:   CTRL.SHIFT,
+        K_LCTRL:    CTRL.CTRL,
         }
 
 # TODO
 PYGAME_POINTER_MAP = {
-        1: POINTER.LEFT_BUTTON,
-        2: POINTER.MIDDLE_BUTTON,
-        3: POINTER.RIGHT_BUTTON,
+        1: CTRL.LEFT_BUTTON,
+        2: CTRL.MIDDLE_BUTTON,
+        3: CTRL.RIGHT_BUTTON,
+        4: CTRL.ZOOM_IN,
+        5: CTRL.ZOOM_OUT,
         }
 
 # may be a controller event or a pointer event
 # controller id may be added in future to allow multiplayer
 class TOGEvent:
+    # 'None' serves as a wildcard
     def __init__(self, code, position = None, pressed = True):
         self.code = code
-        self.position = position
         self.pressed = pressed
+
+        # position is always expressed by world coordinates
+        self.position = None
+        if position:
+            self.position = graphics.Graphics.instance.worldCoord(position)
 
     @property
     def released(self):
@@ -62,7 +80,8 @@ class TOGEvent:
 
     def matches(self, ev2):
         if self.code != ev2.code: return False
-        if self.pressed != ev2.pressed: return False
+        if (self.pressed is not None) and self.pressed != ev2.pressed:
+            return False
         return True
 
 # encapsulates an event and a callback
@@ -85,7 +104,7 @@ class Controls:
 
     def __init__(self):
         self.cbs = {}
-        self.ids = (i for i in xrange(1,2*10**9))
+        self.ids = (i for i in xrange(1,2*10**9)) # dirty
 
     def subscribeTo(self, cbInfo):
         ID = self.ids.next()
@@ -103,6 +122,11 @@ class Controls:
     # and call appropriate callbacks for every event
     def dispatchEvents(self):
         for event in pygame.event.get():
+            position = None
+            code = None
+            pressed = False
+
+            # creating TOGEevent
             if event.type in [KEYDOWN, KEYUP] and event.key in PYGAME_KB_MAP:
                 pressed = event.type == KEYDOWN
                 code = PYGAME_KB_MAP[event.key]
@@ -111,11 +135,20 @@ class Controls:
                     event.button in PYGAME_POINTER_MAP:
                 pressed = event.type == MOUSEBUTTONDOWN
                 code = PYGAME_POINTER_MAP[event.button]
+                position = event.pos
+
+            elif event.type in [MOUSEMOTION]:
+                code = CTRL.MOUSE_MOTION
+                position = event.pos
 
             else:
+                print event
                 continue
 
-            self.dispatchEvent_(TOGEvent(code, pressed = pressed))
+            # dispatch
+            self.dispatchEvent_(TOGEvent(
+                code, pressed = pressed, position = position))
+
 
 class ControlsCapsule:
     def __init__(self, callbacks = None):

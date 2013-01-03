@@ -28,6 +28,8 @@ class ContactListener(b2d.b2ContactListener):
         self.level.contactCallbacks(ContactType.remove, point)
 
 
+# global function scheduler
+# maybe there's a better place for it then the module namespace
 G_FS = utils.FunsctionScheduler()
 
 
@@ -75,7 +77,24 @@ class Level(object):
         return actor.id
 
     def removeActor(self, actor_id):
+        #TODO: the physical body needs to be removed from b2d world
         self.actors.pop(actor_id)
+
+    # returns an arbitrary actor that contains the given point
+    def pickActor(self, pos):
+        aabb = b2d.b2AABB()
+        x,y = pos
+
+        eps = 1e-5
+        aabb.lowerBound = (x-eps, y-eps)
+        aabb.upperBound = (x+eps, y+eps)
+
+        num, shapes = self.world.Query(aabb, 10)
+        if num == 0: return
+
+        for shape in shapes:
+            actor = shape.GetBody().userData
+            if actor.isPointInside(pos): return actor
 
     def createControls(self):
         self.controls = ControlsCapsule()

@@ -1,14 +1,16 @@
 import pygame
 import math
 import utils
-from levels import ContactType
 import random
 import time
+import Box2D as b2d
+from levels import ContactType
 from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
 
 class Graphics:
+    __metaclass__ = utils.Singleton
+
     zoom = None
-    transparent_actors = None
 
     def __init__(self, settings, level):
         self.settings = settings
@@ -19,8 +21,6 @@ class Graphics:
         pygame.display.set_caption('Theory of Gravitation')
 
         self.screen = pygame.display.set_mode(settings.screen_size)
-
-        self.transparent_actors = []
 
 
     def zoomIn(self):
@@ -73,6 +73,22 @@ class Graphics:
         scale *= self.settings.zoom_factor ** self.zoom.get()
         return scale
 
+    # screen coordinates -> world coordinates
+    def worldCoord(self, vec):
+        sw,sh = self.settings.screen_size
+
+        x,y = map(float, vec)
+        y += sh/2
+        x -= sw/2
+        y = sh-y
+
+        vec = b2d.b2Vec2(x,y)
+        vec *= 1./self.getScale()
+        vec = utils.rotate(vec, self.level.world_angle.get())
+
+        vec += self.level.getCameraPosition()
+        return vec
+
     # world coordinates -> screen coordinates
     def screenCoord(self, vec):
         vec = vec.copy()
@@ -84,7 +100,7 @@ class Graphics:
         vec *= self.getScale()
         x,y = map(int,vec)
         y = sh - y
-        x+=sw/2
+        x += sw/2
         y -= sh/2
         return (x,y)
 
@@ -94,9 +110,10 @@ class Graphics:
     def createControls(self):
         self.controls = ControlsCapsule ([
             CBInfo(
-                TOGEvent(code = CTRL.ZOOM_OUT),
+                ev = TOGEvent(code = CTRL.ZOOM_OUT),
                 cb = self.zoomOut),
+
             CBInfo(
-                TOGEvent(code = CTRL.ZOOM_IN),
+                ev = TOGEvent(code = CTRL.ZOOM_IN),
                 cb = self.zoomIn),
             ])
