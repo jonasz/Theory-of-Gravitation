@@ -2,7 +2,7 @@ import pygame
 import settings
 import graphics
 from pygame.locals import *
-from levels import FirstLevel
+from levels import PickledLevel
 from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
 
 class Game:
@@ -30,6 +30,7 @@ class Game:
 
     def start(self):
         self.level.constructWorld()
+        self.level.createControls()
         clock = pygame.time.Clock()
 
         while self.running:
@@ -41,8 +42,8 @@ class Game:
 
 if __name__=='__main__':
     st = settings.Settings()
-    fl = FirstLevel(st)
-    gr = graphics.Graphics(st, fl)
+    lvl = PickledLevel('pickle.data', st)
+    gr = graphics.Graphics(st, lvl)
 
-    g = Game(fl, st, gr)
+    g = Game(lvl, st, gr)
     g.start()

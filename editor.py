@@ -4,13 +4,14 @@ Hold a number key and use the left mouse button to place an actor.
 You can interact with the objects by holding LSHIFT / LCTRL and using
 your mouse.
 """
+import Box2D as b2d
 import settings
 import graphics
 import objects
 from levels import Level
 from game import Game
-from levels import FirstLevel
 from controls import Controls, CBInfo, TOGEvent, CTRL, CTRL, ControlsCapsule
+import pickle
 
 
 class MouseControlled(object):
@@ -51,7 +52,11 @@ class BallBuilder(MouseControlled):
     def mouseDown(self, togEvent):
         pos = togEvent.position
         self.level.addActor(objects.Ball(
-            self.level.world, radius = self.radius, position = pos))
+            self.level.world,
+            radius = self.radius,
+            position = pos,
+            restitution = 0.50,
+            static = False))
 
 
 
@@ -67,8 +72,30 @@ class RectBuilder(MouseControlled):
                     self.level.world,
                     (2,2),
                     position = pos,
-                    restitution = 0))
+                    restitution = 0,
+                    static = True))
 
+class HelicopterBuilder(MouseControlled):
+    def __init__(self, level):
+        super(HelicopterBuilder, self).__init__(CTRL.LEFT_BUTTON)
+        self.level = level
+
+    def mouseDown(self, togEvent):
+        pos = togEvent.position
+
+        if self.level.character:
+            self.level.removeActor(self.level.character.id)
+
+        self.level.character = objects.Helicopter(
+                self.level,
+                self.level.world,
+                3,
+                position = pos,
+                angle = 1.,
+                restitution = 0.1,
+                fixedRotation = True)
+
+        self.level.addActor(self.level.character)
 
 #TODO: This needs improvement
 # The feeling is far from smooth, probably because
@@ -153,7 +180,6 @@ class Resizer(MouseControlled):
             self.origin = pos
 
 
-
 class EditorLevel(Level):
     currentBuilder = None
     cameraPosition = None
@@ -183,6 +209,7 @@ class EditorLevel(Level):
     
     def startBallBuilder(self): self.setBuilder(BallBuilder(self))
     def startRectBuilder(self): self.setBuilder(RectBuilder(self))
+    def startHelicopterBuilder(self): self.setBuilder(HelicopterBuilder(self))
     def startMover(self): self.setBuilder(Mover(self))
     def startResizer(self): self.setBuilder(Resizer(self))
 
@@ -190,6 +217,7 @@ class EditorLevel(Level):
         if self.currentBuilder:
             self.currentBuilder.controls.unsubscribe()
             self.currentBuilder = None
+
 
     def createControls(self):
         super(EditorLevel, self).createControls()
@@ -205,12 +233,24 @@ class EditorLevel(Level):
                 cb = self.startRectBuilder))
 
         self.controls.addCallback(CBInfo(
+                ev = TOGEvent(code = CTRL.K3),
+                cb = self.startHelicopterBuilder))
+
+        self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.SHIFT),
                 cb = self.startMover))
 
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.CTRL),
                 cb = self.startResizer))
+
+        self.controls.addCallback(CBInfo(
+                ev = TOGEvent(code = CTRL.DUMP),
+                cb = self.dumpPickledData))
+
+        self.controls.addCallback(CBInfo(
+                ev = TOGEvent(code = CTRL.LOAD),
+                cb = self.loadPickledData))
 
         # releasing a key disposes the current builder
         for key in (CTRL.K1, CTRL.K2, CTRL.SHIFT, CTRL.CTRL):

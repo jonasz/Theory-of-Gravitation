@@ -24,6 +24,9 @@ CTRL = utils.Enum(
         'SHIFT',
         'CTRL',
 
+        'DUMP',
+        'LOAD',
+
         # mouse
         'LEFT_BUTTON',
         'MIDDLE_BUTTON',
@@ -50,6 +53,8 @@ PYGAME_KB_MAP = {
         K_3:        CTRL.K3,
         K_LSHIFT:   CTRL.SHIFT,
         K_LCTRL:    CTRL.CTRL,
+        K_b:        CTRL.DUMP,
+        K_n:        CTRL.LOAD,
         }
 
 # TODO

@@ -5,11 +5,6 @@ import math
 import random
 
 class Actor(object):
-    actor_id_generator = (i for i in xrange(10**9))
-
-    def __init__(self):
-        self.id = self.actor_id_generator.next()
-
     def draw(self, graphics): raise NotImplementedError
 
     def isMainCharacter(self):
@@ -20,6 +15,9 @@ class Actor(object):
 
     def move(self, vec): raise NotImplementedError
     def isPointInside(self, vec): raise NotImplementedError
+
+    # called after the actor is removed from the level
+    def cleanUp(self): pass
 
 
 class StaticSprite(Actor):
@@ -85,6 +83,9 @@ class MaterialActor(Actor):
                 return True
         return False
 
+    def cleanUp(self):
+        self.world.DestroyBody(self.body)
+
 
 class Ball(MaterialActor):
     def addCircleShape(self, radius):
@@ -98,14 +99,19 @@ class Ball(MaterialActor):
         #print shapeDef.restitution
 
         shape=self.body.CreateShape(shapeDef)
-        self.body.SetMassFromShapes()
+        if not self.static:
+            self.body.SetMassFromShapes()
 
-    def __init__(self, world, radius, **kwargs):
+    def __init__(self, world, radius, static, **kwargs):
         super(Ball, self).__init__(world, **kwargs)
+        self.static = static
         self.addCircleShape(radius)
 
     def draw(self, graphics):
-        graphics.circle((130,40,120), self.body.position, self.radius)
+        color = (130,40,120)
+        if self.static: 
+            color = (100, 20, 100)
+        graphics.circle(color, self.body.position, self.radius)
 
     #rotating a ball is easy
     def rotate(self, vec1, vec2): pass
@@ -186,15 +192,18 @@ class Box(MaterialActor):
 
 class Helicopter(Ball):
     def __init__(self, level, world, radius, **kwargs):
-        super(Helicopter, self).__init__(world, radius, **kwargs)
+        super(Helicopter, self).__init__(world, radius, static = False, **kwargs)
         self.level = level
         self.spr_name = './sprites/heli.png'
 
     def draw(self, graphics):
         #super(Helicopter, self).draw(graphics)
         right = utils.rotate(b2d.b2Vec2(-1,0), self.level.world_angle.get())
-        angle = utils.angle_between(right, self.body.linearVelocity)
-        angle = int(angle * 180 / math.pi)
+        if self.body.linearVelocity.Length()<0.1:
+            angle = 0.
+        else:
+            angle = utils.angle_between(right, self.body.linearVelocity)
+            angle = int(angle * 180 / math.pi)
         graphics.putSprite(
                 self.body.position,
                 self.spr_name,
