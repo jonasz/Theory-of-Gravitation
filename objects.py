@@ -195,14 +195,15 @@ class Helicopter(Ball):
         super(Helicopter, self).__init__(world, radius, static = False, **kwargs)
         self.level = level
         self.spr_name = './sprites/heli.png'
+        self.body.linearDamping = 1
 
     def draw(self, graphics):
         #super(Helicopter, self).draw(graphics)
-        right = utils.rotate(b2d.b2Vec2(-1,0), self.level.world_angle.get())
+        right = utils.rotate(b2d.b2Vec2(-10,0), self.level.world_angle.get())
         if self.body.linearVelocity.Length()<0.1:
             angle = 0.
         else:
-            angle = utils.angle_between(right, self.body.linearVelocity)
+            angle = utils.angle_between(right, self.body.linearVelocity-right)
             angle = int(angle * 180 / math.pi)
         graphics.putSprite(
                 self.body.position,
