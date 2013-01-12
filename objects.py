@@ -231,6 +231,7 @@ class Candy(Ball):
 class Helicopter(Ball):
     grabJoint = None
     spr_name = './sprites/heli.png'
+    grab_spr_name = './sprites/grab.png'
 
     def __init__(self, **kwargs):
         kwargs['linearDamping'] = 1
@@ -239,6 +240,24 @@ class Helicopter(Ball):
 
     def create(self, level):
         super(Helicopter, self).create(level)
+
+    def drawHand(self, graphics):
+        if not self.grabJoint: return
+        print self.grabJoint
+        a = self.grabJoint.GetAnchor1()
+        b = self.grabJoint.GetAnchor2()
+        print a,b
+        pos = (a+b)/2.
+        h = (a-b).Length()/2.
+        w = h/2.
+        right = utils.rotate(b2d.b2Vec2(-10,0), self.level.world_angle.get())
+        angle = utils.angle_between(right, b-a)*180/math.pi-90
+
+        graphics.putSprite(
+                pos,
+                self.grab_spr_name,
+                (w,h),
+                angle=angle)
 
     def draw(self, graphics):
         #super(Helicopter, self).draw(graphics)
@@ -255,6 +274,7 @@ class Helicopter(Ball):
                 angle=angle,
                 flipY = abs(angle)>90)
 
+        self.drawHand(graphics)
 
     def startGrab(self):
         assert not self.grabJoint
