@@ -3,6 +3,8 @@ import pygame.image
 import utils
 import math
 import random
+import levels
+from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
 
 class Actor(object):
     def draw(self, graphics): raise NotImplementedError
@@ -34,38 +36,71 @@ class StaticSprite(Actor):
     def move(self, vec):
         self.position += vec
 
+
 class Pow1(StaticSprite):
     def __init__(self, position, size=(3,3)):
         angle = random.randint(-40, 40)
         super(Pow1, self).__init__(position, size, './sprites/pow1.png', angle)
+
 
 class Pow2(StaticSprite):
     def __init__(self, position, size=(3,3)):
         angle = random.randint(-40, 40)
         super(Pow2, self).__init__(position, size, './sprites/pow2.png', angle)
 
+
 class MaterialActor(Actor):
     body = None
-    def __init__(self, world, **kwargs):
+    level = None
+
+    #body
+    position = None
+    fixedRotation = False
+    static = None
+    angle = None
+    restitution = None
+    linearDamping = None
+
+    #shape
+    density = None
+
+    def __init__(self,
+            position = None,
+            density = 1.,
+            fixedRotation = False,
+            static = False,
+            angle = 0.,
+            restitution = 0.5,
+            linearDamping = 0):
         super(MaterialActor, self).__init__()
-        self.world = world
-        self.shape_attrs = {}
-        self.createBody(**kwargs)
+        self.density = density
+        self.position = b2d.b2Vec2(position)
+        self.fixedRotation = fixedRotation
+        self.static = static
+        self.angle = angle
+        self.restitution = restitution
+        self.linearDamping = linearDamping
 
-    def applyShapeAttrs(self, shape):
-        for (k,v) in self.shape_attrs.items():
-            setattr(shape, k, v)
-            #print shape.restitution
+    def create(self, level):
+        self.level = level
+        self.world = self.level.world
+        self.createBody()
 
-    def createBody(self, **kwargs):
+    def destroy(self):
+        for shape in self.body.shapeList:
+            self.body.DestroyShape(shape)
+        self.world.DestroyBody(self.body)
+        self.body = None
+        self.world = None
+        self.level = None
+
+    def createBody(self):
         bodyDef = b2d.b2BodyDef()
-        print 'create body', kwargs
 
-        for (k,v) in kwargs.items():
-            if k in ['position', 'angle', 'fixedRotation']:
-                setattr(bodyDef, k, v)
-            else:
-                self.shape_attrs[k] = v
+        bodyDef.position = self.position
+        bodyDef.fixedRotation = self.fixedRotation
+        bodyDef.angle = self.angle
+        bodyDef.linearDamping = self.linearDamping
 
         self.body = self.world.CreateBody(bodyDef)
         self.body.SetUserData(self)
@@ -75,6 +110,7 @@ class MaterialActor(Actor):
         self.body.ApplyImpulse(vec, massCenter)
 
     def move(self, vec):
+        self.position += vec
         self.body.position += vec
 
     def isPointInside(self, vec):
@@ -88,24 +124,25 @@ class MaterialActor(Actor):
 
 
 class Ball(MaterialActor):
-    def addCircleShape(self, radius):
+    radius = None
+
+    def __init__(self, radius = 2, **kwargs):
+        super(Ball, self).__init__(**kwargs)
         self.radius = radius
+
+    def create(self, level):
+        super(Ball, self).create(level)
+
         shapeDef = b2d.b2CircleDef()
-        shapeDef.density = 1
-        shapeDef.restitution = 0.8
-        shapeDef.radius = radius
 
-        self.applyShapeAttrs(shapeDef)
-        #print shapeDef.restitution
+        shapeDef.density = self.density
+        shapeDef.restitution = self.restitution
+        shapeDef.radius = self.radius
 
-        shape=self.body.CreateShape(shapeDef)
+        shape = self.body.CreateShape(shapeDef)
+
         if not self.static:
             self.body.SetMassFromShapes()
-
-    def __init__(self, world, radius, static, **kwargs):
-        super(Ball, self).__init__(world, **kwargs)
-        self.static = static
-        self.addCircleShape(radius)
 
     def draw(self, graphics):
         color = (130,40,120)
@@ -117,48 +154,46 @@ class Ball(MaterialActor):
     def rotate(self, vec1, vec2): pass
 
     def resize(self, vec1, vec2):
-        origin = self.body.position
-        d1 = (vec1-origin).Length()
-        d2 = (vec2-origin).Length()
-        scale = d2 / d1
+        level = self.level
+        self.destroy()
 
-        shape = self.body.shapeList[0]
-        self.body.DestroyShape(shape)
+        d1 = (vec1-self.position).Length()
+        d2 = (vec2-self.position).Length()
+        self.radius *= float(d2)/d1
 
-        newradius = self.radius*scale
-        self.addCircleShape(newradius)
+        self.create(level)
 
 
 class Box(MaterialActor):
-    def __init__(self, world, size, angle = 0, static=False, **kwargs):
-        self.static = static
-        super(Box, self).__init__(world, **kwargs)
-        self.addRectShape(size, angle)
+    size = None
 
-    def addRectShape(self, size, angle):
+    def __init__(self, size, **kwargs):
+        super(Box, self).__init__(**kwargs)
+
         self.size = size
-        shapeDef = b2d.b2PolygonDef()
-        shapeDef.SetAsBox(*size)
-        shapeDef.density = 1
-        shapeDef.restitution = 0.8
 
-        self.applyShapeAttrs(shapeDef)
+    def create(self, level):
+        super(Box, self).create(level)
+
+        shapeDef = b2d.b2PolygonDef()
+        shapeDef.SetAsBox(*self.size)
+
+        shapeDef.density = self.density #XXX
+        shapeDef.restitution = self.restitution
+
         self.body.CreateShape(shapeDef)
-        self.body.angle = angle
 
         if not self.static:
             self.body.SetMassFromShapes()
 
     def resize(self, vec1, vec2):
+        level = self.level
+        self.destroy()
 
-        origin = self.body.position
-        angle = self.body.angle
         w,h = self.size
 
-        vec1 = utils.rotate(vec1-origin, -angle)
-        vec2 = utils.rotate(vec2-origin, -angle)
-
-        resize_angle = utils.angle_between(vec1, b2d.b2Vec2(0,1)) - angle
+        vec1 = utils.rotate(vec1 - self.position, -self.angle)
+        vec2 = utils.rotate(vec2 - self.position, -self.angle)
         try:
             w *= 1. * vec2[0] / vec1[0]
             h *= 1. * vec2[1] / vec1[1]
@@ -167,40 +202,48 @@ class Box(MaterialActor):
 
         w = max(w, 0.1)
         h = max(h, 0.1)
+        self.size = (w,h)
 
-        shape = self.body.shapeList[0]
-        self.body.DestroyShape(shape)
-
-        self.addRectShape((w,h), angle)
+        self.create(level)
 
     def rotate(self, vec1, vec2):
-        origin = self.body.position
-        angle = self.body.angle
+        level = self.level
+        self.destroy()
 
-        angle_delta = utils.angle_between(vec1 - origin, vec2 - origin)
+        origin = self.position
+        self.angle += utils.angle_between(vec1 - origin, vec2 - origin)
 
-        shape = self.body.shapeList[0]
-        self.body.DestroyShape(shape)
-
-        self.addRectShape(self.size, angle + angle_delta)
+        self.create(level)
 
     def draw(self, graphics):
         shape = self.body.GetShapeList()[0]
         points = map(self.body.GetWorldPoint, shape.getVertices_tuple())
         graphics.polygon((200,10,100), points)
 
+class Candy(Ball):
+    def draw(self, graphics):
+        color = (30,140,20)
+        if self.static: 
+            color = (100, 20, 100)
+        graphics.circle(color, self.body.position, self.radius)
+
 
 class Helicopter(Ball):
-    def __init__(self, level, world, radius, **kwargs):
-        super(Helicopter, self).__init__(world, radius, static = False, **kwargs)
-        self.level = level
-        self.spr_name = './sprites/heli.png'
-        self.body.linearDamping = 1
+    grabJoint = None
+    spr_name = './sprites/heli.png'
+
+    def __init__(self, **kwargs):
+        kwargs['linearDamping'] = 1
+        kwargs['density'] = 1
+        super(Helicopter, self).__init__(**kwargs)
+
+    def create(self, level):
+        super(Helicopter, self).create(level)
 
     def draw(self, graphics):
         #super(Helicopter, self).draw(graphics)
         right = utils.rotate(b2d.b2Vec2(-10,0), self.level.world_angle.get())
-        if self.body.linearVelocity.Length()<0.1:
+        if self.body.linearVelocity.Length()<1:
             angle = 0.
         else:
             angle = utils.angle_between(right, self.body.linearVelocity-right)
@@ -212,5 +255,76 @@ class Helicopter(Ball):
                 angle=angle,
                 flipY = abs(angle)>90)
 
+
+    def startGrab(self):
+        assert not self.grabJoint
+        candy = self.level.pickClosestCandy(self.body.position, 2*self.radius)
+        if not candy: return
+
+        djd = b2d.b2DistanceJointDef()
+        djd.body1 = self.body
+        djd.body2 = candy.body
+        djd.localAnchor1 = (0,0)
+        djd.localAnchor2 = (0,0)
+        djd.length = self.radius*2
+        self.grabJoint = self.level.world.CreateJoint(djd)
+
+
+    def stopGrab(self):
+        if self.grabJoint:
+            self.level.world.DestroyJoint(self.grabJoint)
+            self.grabJoint = None
+
+
     def isMainCharacter(self):
         return True
+
+
+    def createControls(self):
+        self.controls = ControlsCapsule()
+
+        # create ContinuousActions that will move the main character
+        self.moveUp = utils.ContinuousAction(levels.G_FS,
+                fun = lambda: self.poke(self.level.getOriginalVec(0,50)),
+                interval = 0.02)
+        self.moveLeft = utils.ContinuousAction(levels.G_FS,
+                fun = lambda: self.poke(self.level.getOriginalVec(-50,0)),
+                interval = 0.02)
+        self.moveRight = utils.ContinuousAction(levels.G_FS,
+                fun = lambda: self.poke(self.level.getOriginalVec(50,0)),
+                interval = 0.02)
+
+        # subscribe to them
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_LEFT),
+                cb = self.moveLeft.start))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_RIGHT),
+                cb = self.moveRight.start))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_UP),
+                cb = self.moveUp.start))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_LEFT, pressed = False),
+                cb = self.moveLeft.stop))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_RIGHT, pressed = False),
+                cb = self.moveRight.stop))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_UP, pressed = False),
+                cb = self.moveUp.stop))
+
+
+        # grab
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.GRAB),
+                cb = self.startGrab))
+
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.GRAB, pressed = False),
+                cb = self.stopGrab))

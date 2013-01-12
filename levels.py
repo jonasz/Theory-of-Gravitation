@@ -101,44 +101,26 @@ class Level(object):
             actor = shape.GetBody().userData
             if actor.isPointInside(pos): return actor
 
-    def createCharacterControls(self):
-        self.characterControls = ControlsCapsule()
+    def pickClosestCandy(self, pos, radius):
+        aabb = b2d.b2AABB()
+        x,y = pos
 
-        # create ContinuousActions that will move the main character
-        self.moveUp = utils.ContinuousAction(G_FS,
-                fun = lambda: self.character.poke(self.getOriginalVec(0,50)),
-                interval = 0.02)
-        self.moveLeft = utils.ContinuousAction(G_FS,
-                fun = lambda: self.character.poke(self.getOriginalVec(-50,0)),
-                interval = 0.02)
-        self.moveRight = utils.ContinuousAction(G_FS,
-                fun = lambda: self.character.poke(self.getOriginalVec(50,0)),
-                interval = 0.02)
+        aabb.lowerBound = (x-radius, y-radius)
+        aabb.upperBound = (x+radius, y+radius)
 
-        # subscribe to them
-        self.controls.addCallback(CBInfo(
-                TOGEvent(code = CTRL.ARROW_LEFT),
-                cb = self.moveLeft.start))
+        num, shapes = self.world.Query(aabb, 20)
+        if num == 0: return
 
-        self.controls.addCallback(CBInfo(
-                TOGEvent(code = CTRL.ARROW_RIGHT),
-                cb = self.moveRight.start))
-
-        self.controls.addCallback(CBInfo(
-                TOGEvent(code = CTRL.ARROW_UP),
-                cb = self.moveUp.start))
-
-        self.controls.addCallback(CBInfo(
-                TOGEvent(code = CTRL.ARROW_LEFT, pressed = False),
-                cb = self.moveLeft.stop))
-
-        self.controls.addCallback(CBInfo(
-                TOGEvent(code = CTRL.ARROW_RIGHT, pressed = False),
-                cb = self.moveRight.stop))
-
-        self.controls.addCallback(CBInfo(
-                TOGEvent(code = CTRL.ARROW_UP, pressed = False),
-                cb = self.moveUp.stop))
+        res = None
+        res_dist = 10e20
+        for shape in shapes:
+            actor = shape.GetBody().userData
+            if not isinstance(actor, objects.Candy): continue
+            dist = (actor.body.position - pos).Length()
+            if res_dist > dist:
+                res = actor
+                res_dist = dist
+        return res
 
     def createControls(self):
         self.controls = ControlsCapsule()
@@ -166,28 +148,30 @@ class Level(object):
 
     def constructFrame(self):
         frame = [
-            objects.Box(self.world,
-                    (self.W/2,1),
+            objects.Box(
+                    size = (self.W/2,1),
                     position = (self.W/2, 0),
                     static=True,
                     restitution = 0),
-            objects.Box(self.world,
-                    (self.W/2,1),
+            objects.Box(
+                    size = (self.W/2,1),
                     position = (self.W/2, self.H),
                     static=True,
                     restitution = 0),
-            objects.Box(self.world,
-                    (1,self.H/2),
+            objects.Box(
+                    size = (1,self.H/2),
                     position = (0, self.H/2),
                     static=True,
                     restitution = 0),
-            objects.Box(self.world,
-                    (1,self.H/2),
+            objects.Box(
+                    size = (1,self.H/2),
                     position = (self.W, self.H/2),
                     static=True,
                     restitution = 0),
             ]
-        for x in frame: self.addActor(x)
+        for x in frame:
+            x.create(self)
+            self.addActor(x)
 
     def constructWorld(self):
         doSleep = False
@@ -196,10 +180,6 @@ class Level(object):
         worldAABB.lowerBound = (-20, -20)
         worldAABB.upperBound = (self.size[0]+20, self.size[1]+20)
         self.world = b2d.b2World(worldAABB, self.original_gravity, doSleep)
-
-        print 'SIZE', worldAABB
-
-        self.constructFrame()
 
         self.contactListener = ContactListener(self)
         self.world.SetContactListener(self.contactListener)
@@ -221,56 +201,33 @@ class Level(object):
             delay = 0.2)
 
     # pickling
-    def getBodies(self):
-        res = {}
-        for id, actor in self.actors.items():
-            if not hasattr(actor, 'body'): continue
-            res[id] = actor.body
-        return res
-
-    def setActorsFromBodies(self, bodies):
-        self.actors = {}
-
-        for id, body in bodies.items():
-            actor = body.userData
-            actor.body = body
-            actor.world = actor.body.GetWorld()
-            self.actors[id] = actor
-
-            if isinstance(actor, objects.Helicopter):
-                self.character = actor
-
-        if self.character:
-            self.character.level = self
-
     def loadPickledData(self, filename = 'pickle.data'):
-        print 'load'
+        print 'LOAD'
         with open(filename, 'rb') as f:
-            world, bodies = pickle.load(f)
-            world = world._pickle_finalize()
-            bodies  = b2d.pickle_fix(world, bodies, 'load')
+            self.actors = pickle.load(f)
 
-        self.world = world
-        self.setActorsFromBodies(bodies)
+            for actor in self.actors.values():
+                print actor
+                actor.create(self)
+
+                if isinstance(actor, objects.Helicopter):
+                    self.character = actor
 
     def dumpPickledData(self, filename = 'pickle.data'):
-        print 'dump'
-        if self.character:
-            self.character.level = None
-
+        print 'DUMP'
         with open(filename, 'w') as f:
-            save_values = [
-                    self.world,
-                    b2d.pickle_fix(self.world, self.getBodies(), 'save')]
+            # we don't want to pickle the whole b2 world
+            for actor in self.actors.values():
+                actor.destroy()
 
             try:
-                pickle.dump(save_values, f)
+                pickle.dump(self.actors, f)
             except Exception, s:
                 print 'Pickling failed: ', s
                 return
 
-        if self.character:
-            self.character.level = self
+            for actor in self.actors.values():
+                actor.create(self)
 
 class PickledLevel(Level):
     filename = None
@@ -284,15 +241,12 @@ class PickledLevel(Level):
         self.changeGravityChanger(wa)
 
     def constructWorld(self):
+        super(PickledLevel, self).constructWorld()
         self.loadPickledData(self.filename)
-        self.contactListener = ContactListener(self)
-        self.world.SetContactListener(self.contactListener)
-
-        self.constructFrame()
 
     def createControls(self):
         super(PickledLevel, self).createControls()
-        self.createCharacterControls()
+        self.character.createControls()
 
     def getCameraPosition(self):
         return self.character.body.position

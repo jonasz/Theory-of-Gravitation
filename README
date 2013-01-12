@@ -7,6 +7,8 @@ This is a project for 'Projekt Programistyczny' course at Jagiellonian Universit
 Currently the project is at its early stage.
 
 BUILDING and RUNNING:
+# you may need to install swig package, which is hopefully available
+# in your distro's repository (it is in the Ubuntu repository)
 ./build.sh
 ./run.sh
 

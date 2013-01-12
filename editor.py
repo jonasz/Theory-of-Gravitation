@@ -43,20 +43,21 @@ class MouseControlled(object):
 
 
 
-class BallBuilder(MouseControlled):
+class CandyBuilder(MouseControlled):
     def __init__(self, level, radius = 2):
-        super(BallBuilder, self).__init__(CTRL.LEFT_BUTTON)
+        super(CandyBuilder, self).__init__(CTRL.LEFT_BUTTON)
         self.level = level
         self.radius = radius
 
     def mouseDown(self, togEvent):
         pos = togEvent.position
-        self.level.addActor(objects.Ball(
-            self.level.world,
-            radius = self.radius,
-            position = pos,
-            restitution = 0.50,
-            static = False))
+        actor = objects.Candy(
+                radius = self.radius,
+                position = pos,
+                restitution = 0.50,
+                static = False)
+        actor.create(self.level)
+        self.level.addActor(actor)
 
 
 
@@ -67,13 +68,14 @@ class RectBuilder(MouseControlled):
 
     def mouseDown(self, togEvent):
         pos = togEvent.position
+        actor = objects.Box(
+                size = (2,2),
+                position = pos,
+                restitution = 0,
+                static = True)
+        actor.create(self.level)
         self.level.addActor(
-                objects.Box(
-                    self.level.world,
-                    (2,2),
-                    position = pos,
-                    restitution = 0,
-                    static = True))
+                actor)
 
 class HelicopterBuilder(MouseControlled):
     def __init__(self, level):
@@ -87,13 +89,12 @@ class HelicopterBuilder(MouseControlled):
             self.level.removeActor(self.level.character.id)
 
         self.level.character = objects.Helicopter(
-                self.level,
-                self.level.world,
-                3,
+                radius = 3,
                 position = pos,
                 angle = 1.,
                 restitution = 0.1,
                 fixedRotation = True)
+        self.level.character.create(self.level)
 
         self.level.addActor(self.level.character)
 
@@ -194,6 +195,7 @@ class EditorLevel(Level):
 
     def constructWorld(self):
         super(EditorLevel, self).constructWorld()
+        self.constructFrame()
 
     def getCameraPosition(self):
         return self.cameraPosition.get()
@@ -207,7 +209,7 @@ class EditorLevel(Level):
         self.currentBuilder = builder
         self.currentBuilder.createControls()
     
-    def startBallBuilder(self): self.setBuilder(BallBuilder(self))
+    def startCandyBuilder(self): self.setBuilder(CandyBuilder(self))
     def startRectBuilder(self): self.setBuilder(RectBuilder(self))
     def startHelicopterBuilder(self): self.setBuilder(HelicopterBuilder(self))
     def startMover(self): self.setBuilder(Mover(self))
@@ -226,7 +228,7 @@ class EditorLevel(Level):
 
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.K1),
-                cb = self.startBallBuilder))
+                cb = self.startCandyBuilder))
 
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.K2),
