@@ -36,8 +36,8 @@ G_FS = utils.FunsctionScheduler()
 
 class Level(object):
     world = None
-    W = 80
-    H = 80
+    W = 200
+    H = 200
     size = (W, H)
     character = None
     world_angle = None
@@ -184,6 +184,12 @@ class Level(object):
         self.contactListener = ContactListener(self)
         self.world.SetContactListener(self.contactListener)
 
+    def putStaticActor(self, actor, removeAfter = 0.5):
+        self.addActor(actor)
+        G_FS.addAction(
+            fun = lambda: self.removeActor(actor.id),
+            delay = removeAfter)
+
 
     # displays "POW!" actor when the main character collides with an obstacle
     def clash(self, point):
@@ -194,11 +200,8 @@ class Level(object):
 
         pos = point.position.copy()
         actor = random.choice((objects.Pow1, objects.Pow2))(pos)
-        actorId = self.addActor(actor)
 
-        G_FS.addAction(
-            fun = lambda: self.removeActor(actorId),
-            delay = 0.2)
+        self.putStaticActor(actor, 0.2)
 
     # pickling
     def loadPickledData(self, filename = 'pickle.data'):
@@ -210,7 +213,7 @@ class Level(object):
                 print actor
                 actor.create(self)
 
-                if isinstance(actor, objects.Helicopter):
+                if isinstance(actor, objects.Gorilla):
                     self.character = actor
 
     def dumpPickledData(self, filename = 'pickle.data'):

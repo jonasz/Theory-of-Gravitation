@@ -15,7 +15,7 @@ class Graphics:
     def __init__(self, settings, level):
         self.settings = settings
         self.level = level
-        self.zoom = utils.SmoothChanger(1)
+        self.zoom = utils.SmoothChanger(8)
 
         pygame.init()
         pygame.display.set_caption('Theory of Gravitation')

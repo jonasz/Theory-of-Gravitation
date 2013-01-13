@@ -48,6 +48,17 @@ class Pow2(StaticSprite):
         angle = random.randint(-40, 40)
         super(Pow2, self).__init__(position, size, './sprites/pow2.png', angle)
 
+class SaySomething(StaticSprite):
+    def __init__(self, position, size=(4,4)):
+        angle = random.randint(-40, 40)
+        sprite = random.choice((
+            './sprites/say1.png',
+            './sprites/say2.png',
+            './sprites/say3.png',
+            './sprites/say4.png',
+            './sprites/say5.png',
+            ))
+        super(SaySomething, self).__init__(position, size, sprite, angle)
 
 class MaterialActor(Actor):
     body = None
@@ -221,35 +232,45 @@ class Box(MaterialActor):
         graphics.polygon((200,10,100), points)
 
 class Candy(Ball):
+    spr_name = './sprites/candy.png'
+
     def draw(self, graphics):
-        color = (30,140,20)
-        if self.static: 
-            color = (100, 20, 100)
-        graphics.circle(color, self.body.position, self.radius)
+        graphics.putSprite(
+                self.body.position,
+                self.spr_name,
+                (self.radius, 4./3.*self.radius),
+                angle=self.body.angle*180/math.pi)
+
+    def rotate(self, vec1, vec2):
+        level = self.level
+        self.destroy()
+
+        origin = self.position
+        self.angle += utils.angle_between(vec1 - origin, vec2 - origin)
+
+        self.create(level)
 
 
-class Helicopter(Ball):
+class Gorilla(Ball):
     grabJoint = None
-    spr_name = './sprites/heli.png'
+    spr_name = './sprites/monkey.png'
     grab_spr_name = './sprites/grab.png'
 
     def __init__(self, **kwargs):
-        kwargs['linearDamping'] = 1
-        kwargs['density'] = 1
-        super(Helicopter, self).__init__(**kwargs)
+        kwargs['linearDamping'] = 0.7
+        super(Gorilla, self).__init__(**kwargs)
 
     def create(self, level):
-        super(Helicopter, self).create(level)
+        super(Gorilla, self).create(level)
 
     def drawHand(self, graphics):
         if not self.grabJoint: return
-        print self.grabJoint
+
         a = self.grabJoint.GetAnchor1()
         b = self.grabJoint.GetAnchor2()
-        print a,b
         pos = (a+b)/2.
         h = (a-b).Length()/2.
-        w = h/2.
+        w = h/4.
         right = utils.rotate(b2d.b2Vec2(-10,0), self.level.world_angle.get())
         angle = utils.angle_between(right, b-a)*180/math.pi-90
 
@@ -260,8 +281,8 @@ class Helicopter(Ball):
                 angle=angle)
 
     def draw(self, graphics):
-        #super(Helicopter, self).draw(graphics)
-        right = utils.rotate(b2d.b2Vec2(-10,0), self.level.world_angle.get())
+        #super(Gorilla, self).draw(graphics)
+        right = utils.rotate(b2d.b2Vec2(-20,0), self.level.world_angle.get())
         if self.body.linearVelocity.Length()<1:
             angle = 0.
         else:
@@ -272,6 +293,7 @@ class Helicopter(Ball):
                 self.spr_name,
                 (self.radius, self.radius),
                 angle=angle,
+                flipX = True,
                 flipY = abs(angle)>90)
 
         self.drawHand(graphics)
@@ -295,6 +317,11 @@ class Helicopter(Ball):
             self.level.world.DestroyJoint(self.grabJoint)
             self.grabJoint = None
 
+            offs = b2d.b2Vec2(self.radius*1.5, self.radius*1.5)
+            offs = utils.rotate(offs, self.level.world_angle.get())
+            saypos = self.body.position + offs
+            self.level.putStaticActor(SaySomething(saypos))
+
 
     def isMainCharacter(self):
         return True
@@ -305,13 +332,13 @@ class Helicopter(Ball):
 
         # create ContinuousActions that will move the main character
         self.moveUp = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(0,50)),
+                fun = lambda: self.poke(self.level.getOriginalVec(0,70)),
                 interval = 0.02)
         self.moveLeft = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(-50,0)),
+                fun = lambda: self.poke(self.level.getOriginalVec(-70,0)),
                 interval = 0.02)
         self.moveRight = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(50,0)),
+                fun = lambda: self.poke(self.level.getOriginalVec(70,0)),
                 interval = 0.02)
 
         # subscribe to them

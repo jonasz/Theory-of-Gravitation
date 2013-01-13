@@ -55,6 +55,7 @@ class CandyBuilder(MouseControlled):
                 radius = self.radius,
                 position = pos,
                 restitution = 0.50,
+                density = 0.7,
                 static = False)
         actor.create(self.level)
         self.level.addActor(actor)
@@ -77,9 +78,9 @@ class RectBuilder(MouseControlled):
         self.level.addActor(
                 actor)
 
-class HelicopterBuilder(MouseControlled):
+class GorillaBuilder(MouseControlled):
     def __init__(self, level):
-        super(HelicopterBuilder, self).__init__(CTRL.LEFT_BUTTON)
+        super(GorillaBuilder, self).__init__(CTRL.LEFT_BUTTON)
         self.level = level
 
     def mouseDown(self, togEvent):
@@ -88,9 +89,10 @@ class HelicopterBuilder(MouseControlled):
         if self.level.character:
             self.level.removeActor(self.level.character.id)
 
-        self.level.character = objects.Helicopter(
-                radius = 3,
+        self.level.character = objects.Gorilla(
+                radius = 4,
                 position = pos,
+                density = 0.5,
                 angle = 1.,
                 restitution = 0.1,
                 fixedRotation = True)
@@ -211,7 +213,7 @@ class EditorLevel(Level):
     
     def startCandyBuilder(self): self.setBuilder(CandyBuilder(self))
     def startRectBuilder(self): self.setBuilder(RectBuilder(self))
-    def startHelicopterBuilder(self): self.setBuilder(HelicopterBuilder(self))
+    def startGorillaBuilder(self): self.setBuilder(GorillaBuilder(self))
     def startMover(self): self.setBuilder(Mover(self))
     def startResizer(self): self.setBuilder(Resizer(self))
 
@@ -236,7 +238,7 @@ class EditorLevel(Level):
 
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.K3),
-                cb = self.startHelicopterBuilder))
+                cb = self.startGorillaBuilder))
 
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.SHIFT),
