@@ -44,7 +44,7 @@ class Pow1(StaticSprite):
 
 
 class Pow2(StaticSprite):
-    def __init__(self, position, size=(3,3)):
+    def __init__(self, position, size=(4,4)):
         angle = random.randint(-40, 40)
         super(Pow2, self).__init__(position, size, './sprites/pow2.png', angle)
 
@@ -282,7 +282,7 @@ class Gorilla(Ball):
 
     def draw(self, graphics):
         #super(Gorilla, self).draw(graphics)
-        right = utils.rotate(b2d.b2Vec2(-20,0), self.level.world_angle.get())
+        right = utils.rotate(b2d.b2Vec2(-10,0), self.level.world_angle.get())
         if self.body.linearVelocity.Length()<1:
             angle = 0.
         else:
@@ -320,7 +320,7 @@ class Gorilla(Ball):
             offs = b2d.b2Vec2(self.radius*1.5, self.radius*1.5)
             offs = utils.rotate(offs, self.level.world_angle.get())
             saypos = self.body.position + offs
-            self.level.putStaticActor(SaySomething(saypos))
+            self.level.putStaticActor(SaySomething(saypos), removeAfter = 1)
 
 
     def isMainCharacter(self):

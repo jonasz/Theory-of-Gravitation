@@ -7,7 +7,7 @@ class Settings:
     pos_iters = 8
 
     #pygame
-    screen_size = (800, 800)
+    screen_size = (1200, 800)
 
     #graphics
     zoom_factor = 1.1
