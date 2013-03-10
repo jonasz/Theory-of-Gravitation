@@ -1,8 +1,9 @@
 import pygame
 import math
+import time
 import utils
 import random
-import time
+import itertools
 import Box2D as b2d
 from levels import ContactType
 from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
@@ -15,12 +16,18 @@ class Graphics:
     def __init__(self, settings, level):
         self.settings = settings
         self.level = level
-        self.zoom = utils.SmoothChanger(8)
+        self.zoom = utils.SmoothChanger(5)
 
         pygame.init()
         pygame.display.set_caption('Theory of Gravitation')
 
-        self.screen = pygame.display.set_mode(settings.screen_size)
+        flags = 0
+        if settings.fullscreen:
+            flags |= pygame.FULLSCREEN
+            flags |= pygame.HWSURFACE
+            flags |= pygame.DOUBLEBUF
+
+        self.screen = pygame.display.set_mode(settings.screen_size, flags)
 
 
     def zoomIn(self):
@@ -52,6 +59,21 @@ class Graphics:
                 sprite,
                 (x,y))
 
+    def putText(self, text, position, color = (20,240,30)):
+        font = pygame.font.Font(pygame.font.match_font('dejavusansmono', bold=True), 70)
+        text = font.render(text, 1, color)
+        textpos = text.get_rect(center = position)
+        self.screen.blit(text, textpos)
+
+    def printStats(self):
+        W,H = self.settings.screen_size
+        self.putText(str(self.level.timeLeft()), (80,50))
+        self.putText(str(self.level.score), (W-80,50))
+
+        if self.level.timeLeft() <= 0.01:
+            y = (time.time()*150) % H
+            self.putText("GAME OVER LOL", (W/2,y), color = (250, 110, 110))
+
     def polygon(self, color, points):
         #print points
         points = map(self.screenCoord, points)
@@ -60,10 +82,20 @@ class Graphics:
     def paintWorld(self):
         for actor in self.level.actors.values():
             actor.draw(self)
+        self.printStats()
+
+    def paintBackground(self):
+        self.screen.fill((0,0,0))
+        W,H = self.level.size
+        w,h = 30,30
+        for x in range(0,W,w*2):
+            for y in range(0,H,h*2):
+                self.putSprite((x+w/2,y+w/2), './sprites/cogwheel.png', (w/2,h/2))
+        
 
     def paint(self):
         self.zoom.step()
-        self.screen.fill((0,0,0))
+        self.paintBackground()
         self.paintWorld()
         pygame.display.flip()
 
@@ -91,6 +123,7 @@ class Graphics:
 
     # world coordinates -> screen coordinates
     def screenCoord(self, vec):
+        if type(vec)==tuple: vec = b2d.b2Vec2(*vec)
         vec = vec.copy()
         vec -= self.level.getCameraPosition()
 

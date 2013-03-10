@@ -5,6 +5,7 @@ import utils
 import time
 import random
 from controls import Controls, CBInfo, TOGEvent, CTRL, ControlsCapsule
+import time
 import gravity_changers
 import pickle
 
@@ -36,16 +37,26 @@ G_FS = utils.FunsctionScheduler()
 
 class Level(object):
     world = None
-    W = 200
-    H = 200
+    worldEndsAt = None
+    W = 180
+    H = 180
     size = (W, H)
     character = None
+    gorilla_hut = None
     world_angle = None
     original_gravity = b2d.b2Vec2(0, -30)
     contactCallbackList = None
     actors = {}
     controls = None
     actor_id_generator = (i for i in xrange(10**9))
+    score = None
+    toRemove = None
+
+    def increaseScore(self):
+        self.score+=1
+
+    def timeLeft(self):
+        return round(max(0,self.worldEndsAt - time.time()), 1)
 
     def getCenter(self):
         return b2d.b2Vec2(self.W, self.H)/2.
@@ -57,13 +68,21 @@ class Level(object):
         vec = b2d.b2Vec2(*args)
         return utils.rotate(vec, self.world_angle.get())
 
+    def getOriginalHorAngle(self):
+        a = b2d.b2Vec2(0,1)
+        b = self.getOriginalVec(a)
+        return -utils.angle_between(a,b)
+
     def changeGravityChanger(self, newChanger):
         if self.world_angle: self.world_angle.controls.unsubscribe()
         self.world_angle = newChanger
         self.world_angle.createControls()
 
     def __init__(self, settings):
+        self.toRemove = []
         self.settings = settings
+        self.score = 0
+        self.worldEndsAt = time.time() + settings.time
         self.contactCallbackList = {
                 ContactType.add: [],
                 ContactType.remove: [],
@@ -81,9 +100,9 @@ class Level(object):
         self.actors[actor.id] = actor
         return actor.id
 
-    def removeActor(self, actor_id):
-        actor = self.actors.pop(actor_id)
-        actor.cleanUp()
+    def removeActor(self, actor):
+        self.actors.pop(actor.id)
+        self.toRemove.append(actor)
 
     # returns an arbitrary actor that contains the given point
     def pickActor(self, pos):
@@ -134,10 +153,16 @@ class Level(object):
                 self.settings.pos_iters)
 
     def updateWorld(self):
+        if self.timeLeft() <= 0:
+            return
+
         G_FS.work()
         self.world_angle.step()
         self.physicsStep_()
         #print self.world_angle.get()
+        for actor in self.toRemove:
+            actor.cleanUp()
+        del self.toRemove[:]
     
     def subscribeToContacts(self, ctype, cb):
         self.contactCallbackList[ctype].append(cb)
@@ -187,20 +212,21 @@ class Level(object):
     def putStaticActor(self, actor, removeAfter = 0.5):
         self.addActor(actor)
         G_FS.addAction(
-            fun = lambda: self.removeActor(actor.id),
+            fun = lambda: self.removeActor(actor),
             delay = removeAfter)
 
 
     # displays "POW!" actor when the main character collides with an obstacle
     def clash(self, point):
-        if point.velocity.Length()<10: return
         o1 = point.shape1.GetBody().userData
         o2 = point.shape2.GetBody().userData
-        if not (o1.isMainCharacter() or o2.isMainCharacter()): return
-
         pos = point.position.copy()
-        actor = random.choice((objects.Pow1, objects.Pow2))(pos)
 
+        if o1.clashWith(o2, pos): return
+        if o2.clashWith(o1, pos): return
+
+        if point.velocity.Length()<10: return
+        actor = random.choice((objects.Pow1, objects.Pow2))(pos)
         self.putStaticActor(actor, 0.2)
 
     # pickling
@@ -215,6 +241,9 @@ class Level(object):
 
                 if isinstance(actor, objects.Gorilla):
                     self.character = actor
+
+                if isinstance(actor, objects.GorillaHut):
+                    self.gorilla_hut = actor
 
     def dumpPickledData(self, filename = 'pickle.data'):
         print 'DUMP'

@@ -6,10 +6,15 @@ import heapq
 
 def memoized(fun):
     mem = {}
+    calc = [0]
     def g(*args):
         try:
             return mem[args]
         except KeyError:
+            calc[0] += 1
+            print 'calc', calc
+            print args
+            print
             x = fun(*args)
             mem[args] = x
             return x

@@ -63,20 +63,26 @@ class CandyBuilder(MouseControlled):
 
 
 class RectBuilder(MouseControlled):
-    def __init__(self, level):
+    def getClass(self):
+        return self.cl
+
+    def __init__(self, level, cl = objects.Box, size = (1,10)):
         super(RectBuilder, self).__init__(CTRL.LEFT_BUTTON)
         self.level = level
+        self.cl = cl
+        self.size = size
 
     def mouseDown(self, togEvent):
         pos = togEvent.position
-        actor = objects.Box(
-                size = (2,2),
+        actor = self.getClass()(
+                size = self.size,
                 position = pos,
                 restitution = 0,
                 static = True)
         actor.create(self.level)
         self.level.addActor(
                 actor)
+
 
 class GorillaBuilder(MouseControlled):
     def __init__(self, level):
@@ -87,10 +93,10 @@ class GorillaBuilder(MouseControlled):
         pos = togEvent.position
 
         if self.level.character:
-            self.level.removeActor(self.level.character.id)
+            self.level.removeActor(self.level.character)
 
         self.level.character = objects.Gorilla(
-                radius = 4,
+                radius = 6,
                 position = pos,
                 density = 0.5,
                 angle = 1.,
@@ -187,6 +193,9 @@ class EditorLevel(Level):
     currentBuilder = None
     cameraPosition = None
 
+    def timeLeft(self):
+        return 1
+
     #disabling physics
     def physicsStep_(self):
         pass
@@ -213,6 +222,7 @@ class EditorLevel(Level):
     
     def startCandyBuilder(self): self.setBuilder(CandyBuilder(self))
     def startRectBuilder(self): self.setBuilder(RectBuilder(self))
+    def startHutBuilder(self): self.setBuilder(RectBuilder(self, objects.GorillaHut,(10,10)))
     def startGorillaBuilder(self): self.setBuilder(GorillaBuilder(self))
     def startMover(self): self.setBuilder(Mover(self))
     def startResizer(self): self.setBuilder(Resizer(self))
@@ -239,6 +249,10 @@ class EditorLevel(Level):
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.K3),
                 cb = self.startGorillaBuilder))
+
+        self.controls.addCallback(CBInfo(
+                ev = TOGEvent(code = CTRL.K4),
+                cb = self.startHutBuilder))
 
         self.controls.addCallback(CBInfo(
                 ev = TOGEvent(code = CTRL.SHIFT),

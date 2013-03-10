@@ -21,6 +21,9 @@ class Actor(object):
     # called after the actor is removed from the level
     def cleanUp(self): pass
 
+    # returns true if event should be consumed
+    def clashWith(self, actor2, pos): return False
+
 
 class StaticSprite(Actor):
     def __init__(self, position, size, spr_name, angle = 0):
@@ -42,9 +45,14 @@ class Pow1(StaticSprite):
         angle = random.randint(-40, 40)
         super(Pow1, self).__init__(position, size, './sprites/pow1.png', angle)
 
+class Scored(StaticSprite):
+    def __init__(self, position, size=(6,6)):
+        angle = random.randint(-40, 40)
+        super(Scored, self).__init__(position, size, './sprites/scored.png', angle)
+
 
 class Pow2(StaticSprite):
-    def __init__(self, position, size=(4,4)):
+    def __init__(self, position, size=(3,3)):
         angle = random.randint(-40, 40)
         super(Pow2, self).__init__(position, size, './sprites/pow2.png', angle)
 
@@ -98,8 +106,8 @@ class MaterialActor(Actor):
         self.createBody()
 
     def destroy(self):
-        for shape in self.body.shapeList:
-            self.body.DestroyShape(shape)
+        #for shape in self.body.shapeList:
+            #self.body.DestroyShape(shape)
         self.world.DestroyBody(self.body)
         self.body = None
         self.world = None
@@ -131,7 +139,7 @@ class MaterialActor(Actor):
         return False
 
     def cleanUp(self):
-        self.world.DestroyBody(self.body)
+        self.destroy()
 
 
 class Ball(MaterialActor):
@@ -233,6 +241,7 @@ class Box(MaterialActor):
 
 class Candy(Ball):
     spr_name = './sprites/candy.png'
+    grabbed = False
 
     def draw(self, graphics):
         graphics.putSprite(
@@ -250,11 +259,45 @@ class Candy(Ball):
 
         self.create(level)
 
+    def grab(self):
+        self.grabbed = True
+
+    def release(self):
+        self.grabbed = False
+
+    def canStoreInTheHut(self):
+        return not self.grabbed
+
+class GorillaHut(Box):
+    spr_name = './sprites/gorilla_hut.png'
+
+    def draw(self, graphics):
+        w,h = self.size
+        graphics.putSprite(
+                self.body.position,
+                self.spr_name,
+                (w*1.3, h*1.3),
+                angle = self.level.getOriginalHorAngle()*180/math.pi)
+
+    def clashWith(self, actor2, pos):
+        if type(actor2) != Candy: return False
+
+        if actor2.canStoreInTheHut():
+            print 'jazda z ', actor2
+            self.level.removeActor(actor2)
+            self.level.increaseScore()
+            self.level.putStaticActor(Scored(pos), 0.2)
+            return True
+        else:
+            return False
+
 
 class Gorilla(Ball):
     grabJoint = None
     spr_name = './sprites/monkey.png'
+    happy_spr_name = './sprites/happy_monkey.png'
     grab_spr_name = './sprites/grab.png'
+    candy = None
 
     def __init__(self, **kwargs):
         kwargs['linearDamping'] = 0.7
@@ -288,9 +331,12 @@ class Gorilla(Ball):
         else:
             angle = utils.angle_between(right, self.body.linearVelocity-right)
             angle = int(angle * 180 / math.pi)
+
+        if self.hasCandy(): sprite = self.happy_spr_name
+        else: sprite = self.spr_name
         graphics.putSprite(
                 self.body.position,
-                self.spr_name,
+                sprite,
                 (self.radius, self.radius),
                 angle=angle,
                 flipX = True,
@@ -298,10 +344,16 @@ class Gorilla(Ball):
 
         self.drawHand(graphics)
 
+    def hasCandy(self):
+        return self.candy is not None
+
     def startGrab(self):
         assert not self.grabJoint
         candy = self.level.pickClosestCandy(self.body.position, 2*self.radius)
         if not candy: return
+
+        self.candy = candy
+        self.candy.grab()
 
         djd = b2d.b2DistanceJointDef()
         djd.body1 = self.body
@@ -322,6 +374,9 @@ class Gorilla(Ball):
             saypos = self.body.position + offs
             self.level.putStaticActor(SaySomething(saypos), removeAfter = 1)
 
+            self.candy.release()
+            self.candy = None
+
 
     def isMainCharacter(self):
         return True
@@ -332,13 +387,16 @@ class Gorilla(Ball):
 
         # create ContinuousActions that will move the main character
         self.moveUp = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(0,70)),
+                fun = lambda: self.poke(self.level.getOriginalVec(0,240)),
+                interval = 0.02)
+        self.moveDown = utils.ContinuousAction(levels.G_FS,
+                fun = lambda: self.poke(self.level.getOriginalVec(0,-140)),
                 interval = 0.02)
         self.moveLeft = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(-70,0)),
+                fun = lambda: self.poke(self.level.getOriginalVec(-200,0)),
                 interval = 0.02)
         self.moveRight = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(70,0)),
+                fun = lambda: self.poke(self.level.getOriginalVec(200,0)),
                 interval = 0.02)
 
         # subscribe to them
@@ -355,6 +413,10 @@ class Gorilla(Ball):
                 cb = self.moveUp.start))
 
         self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_DOWN),
+                cb = self.moveDown.start))
+
+        self.controls.addCallback(CBInfo(
                 TOGEvent(code = CTRL.ARROW_LEFT, pressed = False),
                 cb = self.moveLeft.stop))
 
@@ -365,6 +427,10 @@ class Gorilla(Ball):
         self.controls.addCallback(CBInfo(
                 TOGEvent(code = CTRL.ARROW_UP, pressed = False),
                 cb = self.moveUp.stop))
+        
+        self.controls.addCallback(CBInfo(
+                TOGEvent(code = CTRL.ARROW_DOWN, pressed = False),
+                cb = self.moveDown.stop))
 
 
         # grab
