@@ -387,16 +387,16 @@ class Gorilla(Ball):
 
         # create ContinuousActions that will move the main character
         self.moveUp = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(0,240)),
+                fun = lambda: self.poke(self.level.getOriginalVec(0,340)),
                 interval = 0.02)
         self.moveDown = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(0,-140)),
+                fun = lambda: self.poke(self.level.getOriginalVec(0,-240)),
                 interval = 0.02)
         self.moveLeft = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(-200,0)),
+                fun = lambda: self.poke(self.level.getOriginalVec(-300,0)),
                 interval = 0.02)
         self.moveRight = utils.ContinuousAction(levels.G_FS,
-                fun = lambda: self.poke(self.level.getOriginalVec(200,0)),
+                fun = lambda: self.poke(self.level.getOriginalVec(300,0)),
                 interval = 0.02)
 
         # subscribe to them
